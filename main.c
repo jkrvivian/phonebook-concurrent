@@ -60,8 +60,9 @@ int main(int argc, char *argv[])
     entry *pHead, *e;
     pHead = (entry *) malloc(sizeof(entry));
     printf("size of entry : %lu bytes\n", sizeof(entry));
+	pHead->pNext = NULL;
     e = pHead;
-    e->pNext = NULL;
+//	e->pNext = NULL;
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -71,6 +72,7 @@ int main(int argc, char *argv[])
 
 #ifndef THREAD_NUM
 #define THREAD_NUM 4
+
 #endif
 
     clock_gettime(CLOCK_REALTIME, &start);
@@ -102,10 +104,10 @@ int main(int argc, char *argv[])
     pHead = pHead->pNext;
     for (int i = 0; i < THREAD_NUM; i++) {
         if (i == 0) {
-            pHead = app[i]->pHead->pNext;
+            pHead = app[i]->pHead;
             dprintf("Connect %d head string %s %p\n", i, app[i]->pHead->pNext->lastName, app[i]->ptr);
         } else {
-            etmp->pNext = app[i]->pHead->pNext;
+            etmp->pNext = app[i]->pHead;
             dprintf("Connect %d head string %s %p\n", i, app[i]->pHead->pNext->lastName, app[i]->ptr);
         }
 
@@ -138,7 +140,9 @@ int main(int argc, char *argv[])
 #endif
 
     e = pHead;
-
+/*#ifdef OPT
+	show_entry(e);
+#endif*/
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
     e = pHead;
