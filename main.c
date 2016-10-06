@@ -9,6 +9,20 @@
 #include <pthread.h>
 #include <sys/mman.h>
 
+#ifndef OPT
+
+#include "file.c"
+#include "debug.h"
+#include <fcntl.h>
+
+#ifndef THREAD_NUM
+#define THREAD_NUM 4
+#endif
+
+#define ALIGN_FILE "align.txt"
+
+#endif
+
 #include IMPL
 
 #define DICT_FILE "./dictionary/words.txt"
@@ -32,13 +46,7 @@ int main(int argc, char *argv[])
     FILE *fp;
     int i = 0;
     char line[MAX_LAST_NAME_SIZE];
-#else
-    struct timespec mid;
-#endif
-    struct timespec start, end;
-    double cpu_time1, cpu_time2;
 
-#ifndef OPT
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
     if (!fp) {
@@ -46,35 +54,25 @@ int main(int argc, char *argv[])
         return -1;
     }
 #else
-
-#include "file.c"
-#include "debug.h"
-#include <fcntl.h>
-#define ALIGN_FILE "align.txt"
     file_align(DICT_FILE, ALIGN_FILE, MAX_LAST_NAME_SIZE);
     int fd = open(ALIGN_FILE, O_RDONLY | O_NONBLOCK);
-    off_t fs = fsize( ALIGN_FILE);
+    off_t fs = fsize(ALIGN_FILE);
 #endif
 
+    struct timespec start, end;
+    double cpu_time1, cpu_time2;
     /* build the entry */
     entry *pHead, *e;
     pHead = (entry *) malloc(sizeof(entry));
     printf("size of entry : %lu bytes\n", sizeof(entry));
-	pHead->pNext = NULL;
     e = pHead;
-//	e->pNext = NULL;
+	e->pNext = NULL;
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
 
 #if defined(OPT)
-
-#ifndef THREAD_NUM
-#define THREAD_NUM 4
-
-#endif
-
     clock_gettime(CLOCK_REALTIME, &start);
 
     char *map = mmap(NULL, fs, PROT_READ, MAP_SHARED, fd, 0);
@@ -88,15 +86,13 @@ int main(int argc, char *argv[])
 
     pthread_setconcurrency(THREAD_NUM + 1);
 
-    pthread_t *tid = (pthread_t *) malloc(sizeof( pthread_t) * THREAD_NUM);
+    pthread_t *tid = (pthread_t *) malloc(sizeof(pthread_t) * THREAD_NUM);
     append_a **app = (append_a **) malloc(sizeof(append_a *) * THREAD_NUM);
-    for (int i = 0; i < THREAD_NUM; i++)
-        app[i] = new_append_a(map + MAX_LAST_NAME_SIZE * i, map + fs, i, THREAD_NUM, entry_pool + i);
 
-    clock_gettime(CLOCK_REALTIME, &mid);
-    for (int i = 0; i < THREAD_NUM; i++)
+    for (int i = 0; i < THREAD_NUM; i++) {
+		app[i] = new_append_a(map + MAX_LAST_NAME_SIZE * i, map + fs, i, THREAD_NUM, entry_pool + i);
         pthread_create( &tid[i], NULL, (void *) &append, (void *) app[i]);
-
+	}
     for (int i = 0; i < THREAD_NUM; i++)
         pthread_join(tid[i], NULL);
 
@@ -140,9 +136,6 @@ int main(int argc, char *argv[])
 #endif
 
     e = pHead;
-/*#ifdef OPT
-	show_entry(e);
-#endif*/
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
     e = pHead;
